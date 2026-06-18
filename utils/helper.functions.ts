@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt';
 
-export const generateJWTToken = (payload: object, ttl?: string): string => {
-  const secretKey = process.env.JWT_SECRET ?? ''
+export const generateJWTToken = (payload: object, secret: string, ttl?: string,): string => {
+  
 
   const options: jwt.SignOptions = {
   ...(ttl && ttl.trim() !== '' 
@@ -9,13 +10,12 @@ export const generateJWTToken = (payload: object, ttl?: string): string => {
     : {})
 } as jwt.SignOptions;
 
-  return jwt.sign(payload, secretKey, options);
+  return jwt.sign(payload, secret, options)
 };
 
-export const decodeSessionToken = async(token: string) => {
-  const secretKey = process.env.JWT_SECRET ?? '';
+export const decodeSessionToken = async(token: string, secret: string) => {
   try {
-    const decoded = jwt.verify(token, secretKey);
+    const decoded = jwt.verify(token, secret);
     return decoded;
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
@@ -29,3 +29,14 @@ export const decodeSessionToken = async(token: string) => {
     return null;
   }
 }
+
+export const hashPassword = async (password: string): Promise<string> => {
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    return hashedPassword;
+};
+
+export const verifyPassword = async (password: string, storedHash: string): Promise<boolean> => {
+    const isMatch = await bcrypt.compare(password, storedHash);
+    return isMatch;
+};
