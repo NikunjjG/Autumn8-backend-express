@@ -1,13 +1,22 @@
-import express from "express"
+import express, {type Request, type Response} from "express"
 import {createServer} from "node:http"
 import { Server } from 'socket.io'
 import dotenv from "dotenv"
 import { WEB_SOCKET_ACTIONS } from "./constants/ws_actions.js"
 import { randomUUID } from "node:crypto"
 import { decodeSessionToken, generateJWTToken } from "./utils/helper.functions.js"
+import { query } from "./db.js"
+import authRouter from "./routes/v1/auth.routes.js"
+
+interface IUser {
+    id: number,
+    username: string, 
+    email: string 
+}
 
 dotenv.config()
 const app = express();
+app.use(express.json())
 const server = createServer(app)
 
 const io = new Server(server, {
@@ -15,6 +24,31 @@ const io = new Server(server, {
         origin: "*"
     }
 })
+
+app.get('/users', async (req: Request, res: Response) => {
+  try{
+    const userid  = req.query.userid as string
+
+    if (!userid) {
+      return res.status(400).json({ message: 'userid query parameter is required' });
+    }
+
+    const DB_QUERY = `SELECT username, email from users where id = $1`
+    const result = await query(DB_QUERY, [userid])
+
+    const user: IUser = result?.rows?.[0]
+
+    if(!user){
+       return res.status(404).json({message: 'User not found'})
+    }
+
+    return res.status(200).json(user)
+  }catch(err){
+    console.log(err)
+  } 
+})
+
+app.use('/auth', authRouter)
 
 io.on(WEB_SOCKET_ACTIONS.CONNECTION, (socket) => {
     console.log(`A user with socket connection id ${socket.id} connected`)
@@ -25,13 +59,13 @@ io.on(WEB_SOCKET_ACTIONS.CONNECTION, (socket) => {
         const sessionId = randomUUID()
         activeSessionId = sessionId;
         await socket.join(sessionId)
-        const sessionToken = generateJWTToken({ user: userId, sessionId: sessionId }, "1h")
+        const sessionToken = generateJWTToken({ user: userId, sessionId: sessionId }, process.env.JWT_SECRET_COLLABORATION ?? '', "1h")
         socket.emit(WEB_SOCKET_ACTIONS.SESSION_CREATED, {sessionId: sessionId, sessionToken: sessionToken, userId: userId})
     })
 
     socket.on(WEB_SOCKET_ACTIONS.JOIN_SESSION, async (token: string) => {
         try {
-        const { sessionId } = await decodeSessionToken(token) as {sessionId: string, sessionToken?: string};
+        const { sessionId } = await decodeSessionToken(token, process.env.JWT_SECRET_COLLABORATION ?? '') as {sessionId: string, sessionToken?: string};
         activeSessionId = sessionId;
         if (sessionId) {
             await socket.join(sessionId);
