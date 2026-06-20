@@ -3,11 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const redis = new Redis({
-    host: process.env.REDIS_HOST,
-    port: parseInt(process.env.REDIS_PORT ?? "6379"),
-    password: process.env.REDIS_PASSWORD ?? ""
-})
+const redis = new Redis(process.env.REDIS_HOST ?? '')
 
 redis.on("ready", () => {
     console.log("The redis connection is ready!")
