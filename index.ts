@@ -8,7 +8,7 @@ import { decodeSessionToken, generateJWTToken } from "./utils/helper.functions.j
 import { query } from "./db.js"
 import authRouter from "./routes/v1/auth.routes.js"
 import redis from './redis.js'
-import {noSqlConnection} from './mongo.js'
+import './mongo.js'
 
 interface IUser {
     id: number,
