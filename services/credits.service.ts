@@ -45,6 +45,7 @@ export const syncDBtoCache = async() => {
             for (const key of keys) {
                 const value = await redis.get(key)
                 const userId = key.split(":")[1]
+                if (!value || !userId) continue
                 await query(QEURIES.USER_QUERIES.WRITE.UPDATE_USER_CREDITS(), [value, userId])
             }
         })

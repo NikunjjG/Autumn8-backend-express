@@ -3,6 +3,9 @@ import { query } from "../db.js"
 import { QEURIES } from "../queries/index.js"
 import type { IUserTable } from "../types/user.types.js"
 import { generateJWTToken, hashPassword, verifyPassword } from "../utils/helper.functions.js"
+import { randomUUID } from "node:crypto"
+import redis from "../redis.js"
+import { REDIS_KEYS } from "../utils/redis.keys.js"
 
 export const LoginController = async(req: Request, res: Response) => {
     try{
@@ -15,7 +18,7 @@ export const LoginController = async(req: Request, res: Response) => {
         const result = await query(QEURIES.USER_QUERIES.GET.USER_FROM_EMAIL(), [email])
         const user: IUserTable = result.rows?.[0];
 
-        console.log({user, email, password})
+        
 
         const isPasswordVerified = await verifyPassword(password, user.hashed_password ?? '')
         
@@ -26,8 +29,9 @@ export const LoginController = async(req: Request, res: Response) => {
         }
         
         delete user.hashed_password;
-        const authToken = await generateJWTToken({id:user?.id ,username: user?.username, email: user?.email}, process.env.JWT_SECRET_LOGIN ?? '')
-        await query(QEURIES.AUTH_QUERIES.WRITE.TOKEN_INTO_SESSION_TABLE(), [authToken, user.id])
+        const jti = randomUUID()
+        const authToken = await generateJWTToken({id:user?.id ,username: user?.username, email: user?.email, jti: jti}, process.env.JWT_SECRET_LOGIN ?? '', '1h')
+        redis.set(REDIS_KEYS.AUTH_TOKEN(user.id?.toString(), jti), authToken, 'EX', 3600)
 
         return res.status(200).json({token: authToken, ...user})
     }catch(err){
@@ -52,8 +56,6 @@ export const SignUpController = async(req: Request, res: Response) => {
         
         const hashedPassword = await hashPassword(password)
         await query(QEURIES.USER_QUERIES.WRITE.CREATE_NEW_USER(), [username, email, hashedPassword])
-        // const fetchedResult = await query(QEURIES.USER_QUERIES.GET.USER_FROM_EMAIL(), [email])
-        // const createdUser: IUserTable = fetchedResult.rows?.[0];
 
         return res.status(200).json({message: 'User created succesfully!'})
     }catch(err){

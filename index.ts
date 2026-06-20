@@ -10,6 +10,9 @@ import authRouter from "./routes/v1/auth.routes.js"
 import redis from './redis.js'
 import './mongo.js'
 import { syncDBtoCache } from "./services/credits.service.js"
+import cors from 'cors'
+import { authGate } from "./middlewares/auth.middleware.js"
+import creditsRouter from "./routes/v1/credits.routes.js"
 
 interface IUser {
     id: number,
@@ -20,6 +23,7 @@ interface IUser {
 dotenv.config()
 const app = express();
 app.use(express.json())
+app.use(cors())
 const server = createServer(app)
 
 const io = new Server(server, {
@@ -52,6 +56,7 @@ app.get('/users', async (req: Request, res: Response) => {
 })
 
 app.use('/auth', authRouter)
+app.use('/credits', authGate, creditsRouter)
 
 io.on(WEB_SOCKET_ACTIONS.CONNECTION, (socket) => {
     console.log(`A user with socket connection id ${socket.id} connected`)
