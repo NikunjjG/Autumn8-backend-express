@@ -14,11 +14,26 @@ const writeNewUserIntoTable = () => {
     VALUES($1, $2, $3)`
 }
 
+const getCreditsFromUserId = () => {
+    return `SELECT * FROM ${TABLE_LOOKUPS.USER_TABLE} where id = $1`
+}
+
+const getAllUsers = () => {
+    return `SELECT * FROM ${TABLE_LOOKUPS.USER_TABLE}`
+}
+
+const updateUserCredits = () => {
+    return `UPDATE ${TABLE_LOOKUPS.USER_TABLE} SET credits = $1 WHERE id = $2`
+}
+
 export const USER_QUERIES = {
     GET: {
-        USER_FROM_EMAIL: getUserFromEmail
+        USER_FROM_EMAIL: getUserFromEmail,
+        CREDITS_FROM_USERID: getCreditsFromUserId,
+        GET_ALL_USERS: getAllUsers,
     },
     WRITE: {
-        CREATE_NEW_USER: writeNewUserIntoTable
+        CREATE_NEW_USER: writeNewUserIntoTable,
+        UPDATE_USER_CREDITS: updateUserCredits
     }
 }
