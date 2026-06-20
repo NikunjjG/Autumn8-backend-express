@@ -9,6 +9,7 @@ import { query } from "./db.js"
 import authRouter from "./routes/v1/auth.routes.js"
 import redis from './redis.js'
 import './mongo.js'
+import { syncDBtoCache } from "./services/credits.service.js"
 
 interface IUser {
     id: number,
@@ -95,3 +96,20 @@ app.use('/', (_req,res) => {
 server.listen(process.env.PORT, () => {
     console.log(`Server up and running at port ${process.env.PORT}`)
 })
+
+const syncInterval = setInterval(async() => {
+    await syncDBtoCache()
+}, 5*60*1000)
+
+process.on("SIGTERM", async () => {
+    clearInterval(syncInterval)
+    await syncDBtoCache()
+    process.exit(0)
+})
+
+process.on("SIGINT", async () => {
+    clearInterval(syncInterval)
+    await syncDBtoCache()
+    process.exit(0)
+})
+
