@@ -13,6 +13,7 @@ import { syncDBtoCache } from "./services/credits.service.js"
 import cors from 'cors'
 import { authGate } from "./middlewares/auth.middleware.js"
 import creditsRouter from "./routes/v1/credits.routes.js"
+import workflowRouter from "./routes/v1/workflow.routes.js"
 
 interface IUser {
     id: number,
@@ -57,6 +58,7 @@ app.get('/users', async (req: Request, res: Response) => {
 
 app.use('/auth', authRouter)
 app.use('/credits', authGate, creditsRouter)
+app.use('/workflows', authGate, workflowRouter)
 
 io.on(WEB_SOCKET_ACTIONS.CONNECTION, (socket) => {
     console.log(`A user with socket connection id ${socket.id} connected`)
