@@ -1,8 +1,19 @@
 export const WEB_SOCKET_ACTIONS = {
     CONNECTION: 'connection',
-    CREATE_SESSION: 'create_session',
-    SESSION_CREATED: 'session_created',
-    JOIN_SESSION: 'join_session',
+    DISCONNECT: 'disconnect',
+
+    JOIN_WORKFLOW: 'join_workflow',
+    LEAVE_WORKFLOW: 'leave_workflow',
+    USER_JOINED: 'user_joined',
+    USER_LEFT: 'user_left',
+
+    NODES_CHANGE: 'nodes_change',
+    EDGES_CHANGE: 'edges_change',
+    NODE_ADDED: 'node_added',
+    EDGE_ADDED: 'edge_added',
+    NODE_DATA_UPDATED: 'node_data_updated',
+
     CURSOR_MOVEMENT: 'cursor_movement',
-    CURSOR_MOVEMENT_LISTENER: 'cursor_movement_listener'
+
+    SESSION_EXPIRED: 'session_expired',
 }

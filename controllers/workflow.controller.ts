@@ -1,6 +1,10 @@
 import { type Request, type Response } from "express"
 import WorkflowModel from "../models/workflow.model.js"
 import { randomUUID } from "node:crypto"
+import { generateJWTToken } from "../utils/helper.functions.js"
+import redis from "../redis.js"
+import { io } from "../server.js"
+import { WEB_SOCKET_ACTIONS } from "../constants/ws_actions.js"
 
 export const getAllWorkflows = async (req: Request, res: Response) => {
     try{
@@ -74,7 +78,6 @@ export const saveWorkflow = async (req: Request, res: Response) => {
 
 export const updateCollaborators = async (req: Request, res: Response) => {
     try{
-        const id = req.params.id ?? ''
         await WorkflowModel.findOneAndUpdate(
         { workflow_id: req.params.id ?? '' },
             { 
@@ -86,5 +89,40 @@ export const updateCollaborators = async (req: Request, res: Response) => {
     }catch(err){
         console.log(err)
         return res.status(409).json({msg: "Could not add collaborator", err: err, action: "_REDIRECT"})
+    }
+}
+
+export const createCollaborativeSession = async (req: Request, res: Response) => {
+    try{
+        const workflowId = req.params.id
+        if(!workflowId){
+            return res.status(409).json({msg: "Could not create a collaborative session, missing workflow details"})
+        }
+        const token = await generateJWTToken({workflowId}, process.env.JWT_SECRET_COLLABORATION ?? '' , '1h')
+        await redis.set(`collab:${workflowId}:${token}`, workflowId?.toString(), 'EX', 3600)
+        return res.status(200).json({content: token})
+    }catch(err){
+        console.log(err)
+        return res.status(409).json({msg: "Could not create a collaborative session", err: err})
+    }
+}
+
+export const endCollaborativeSession = async (req: Request, res: Response) => {
+    try{
+        const workflowId = req.params.id
+        io.to(`workflow:${workflowId}`).emit(WEB_SOCKET_ACTIONS.SESSION_EXPIRED)
+        const stream = redis.scanStream({ match: `collab:${workflowId?.toString() ?? ''}:*` })
+        stream.on("data", async (keys: string[]) => {
+            if (keys.length) await redis.del(...keys)
+        })
+        stream.on("end", () => {
+            return res.status(200).json({ msg: "Session ended" })
+        })
+        stream.on("error", (err: Error) => {
+            return res.status(500).json({ msg: "Failed to end session", err: err })
+        })
+    }catch(err){
+        console.log(err)
+        return res.status(409).json({ msg: "There was some error closing the session", err: err })
     }
 }

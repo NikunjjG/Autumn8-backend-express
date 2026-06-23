@@ -3,7 +3,6 @@ import bcrypt from 'bcrypt';
 
 export const generateJWTToken = (payload: object, secret: string, ttl?: string,): string => {
   
-
   const options: jwt.SignOptions = {
   ...(ttl && ttl.trim() !== '' 
     ? { expiresIn: ttl as jwt.SignOptions['expiresIn'] } 

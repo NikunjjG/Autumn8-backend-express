@@ -11,12 +11,14 @@ export const LoginController = async(req: Request, res: Response) => {
     try{
         const { email, password } = req.body
 
+        
         if(!password || !email){
             return res.status(400).json({message: 'Incomplete payload, both email and password are required'})
         }
-
+        
         const result = await query(QEURIES.USER_QUERIES.GET.USER_FROM_EMAIL(), [email])
         const user: IUserTable = result.rows?.[0];
+        console.log({email, password, user, result})
 
         
 
