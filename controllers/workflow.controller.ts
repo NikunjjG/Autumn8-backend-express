@@ -6,6 +6,8 @@ import redis from "../redis.js"
 import { io } from "../server.js"
 import { WEB_SOCKET_ACTIONS } from "../constants/ws_actions.js"
 
+const FASTAPI_URL = process.env.FASTAPI_URL ?? 'http://localhost:8000'
+
 export const getAllWorkflows = async (req: Request, res: Response) => {
     try{
         const userid = req.user!.id
@@ -124,5 +126,78 @@ export const endCollaborativeSession = async (req: Request, res: Response) => {
     }catch(err){
         console.log(err)
         return res.status(409).json({ msg: "There was some error closing the session", err: err })
+    }
+}
+
+const NODE_COSTS: Record<string, number> = {
+    llm_agent: 5,
+    code: 1,
+    http_request: 5,
+}
+
+export const executeWorkflow = async (req: Request, res: Response) => {
+    try {
+        const workflowId = req.params.id
+        const userId = req.user!.id.toString()
+        const { nodes, edges, triggerPayload } = req.body
+
+        if (!nodes || !edges) {
+            return res.status(400).json({ msg: "Missing nodes or edges in request body" })
+        }
+
+        const { getUserCredits } = await import("../services/credits.service.js")
+        const userCredits = await getUserCredits(userId) ?? 0
+
+        const estimatedCost = (nodes as any[]).reduce((cost: number, node: any) => {
+            return cost + (NODE_COSTS[node.type] ?? 0)
+        }, 0)
+
+        if (userCredits < estimatedCost) {
+            return res.status(403).json({
+                msg: "Insufficient credits",
+                required: estimatedCost,
+                available: userCredits,
+            })
+        }
+
+        const expressUrl = process.env.EXPRESS_URL ?? 'http://localhost:8800'
+        const callbackUrl = `${expressUrl}/workflows/${workflowId}/progress`
+
+        res.status(200).json({ msg: "Execution started" })
+
+        fetch(`${FASTAPI_URL}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                workflowId,
+                userId: req.user!.id,
+                nodes,
+                edges,
+                triggerPayload: triggerPayload ?? {},
+                callbackUrl,
+            }),
+        })
+        .then((response) => response.json())
+        .then(async (result) => {
+            if (result.success && result.totalCost > 0) {
+                const { deductUserCredits } = await import("../services/credits.service.js")
+                const deductResult = await deductUserCredits(userId, result.totalCost)
+                io.to(`workflow:${workflowId}`).emit('EXECUTION_PROGRESS', {
+                    event: 'credits_deducted',
+                    cost: result.totalCost,
+                    remaining: deductResult?.remaining ?? 0,
+                })
+            }
+        })
+        .catch((err) => {
+            console.log('Execution error:', err)
+            io.to(`workflow:${workflowId}`).emit('EXECUTION_PROGRESS', {
+                event: 'workflow_error',
+                error: 'Execution engine unreachable',
+            })
+        })
+    } catch (err) {
+        console.log(err)
+        return res.status(500).json({ msg: "Workflow execution failed", err: err })
     }
 }

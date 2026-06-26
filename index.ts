@@ -14,6 +14,13 @@ import workflowRouter from "./routes/v1/workflow.routes.js"
 
 app.use('/auth', authRouter)
 app.use('/credits', authGate, creditsRouter)
+
+app.post('/workflows/:id/progress', (req, res) => {
+    const workflowId = req.params.id
+    io.to(`workflow:${workflowId}`).emit('EXECUTION_PROGRESS', req.body)
+    res.status(200).send()
+})
+
 app.use('/workflows', authGate, workflowRouter)
 
 io.use(async (socket, next) => {
