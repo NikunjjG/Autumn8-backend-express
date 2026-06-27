@@ -41,18 +41,22 @@ export const deductUserCredits = async(userid: string, amount: number) => {
 export const syncDBtoCache = async() => {
     try{
         const stream = redis.scanStream({ match: "credits:*" })
-        stream.on("data", async (keys) => {
+        stream.on("data", async (keys: string[]) => {
             for (const key of keys) {
-                const value = await redis.get(key)
-                const userId = key.split(":")[1]
-                if (!value || !userId) continue
-                await query(QEURIES.USER_QUERIES.WRITE.UPDATE_USER_CREDITS(), [value, userId])
+                try {
+                    const value = await redis.get(key)
+                    const userId = key.split(":")[1]
+                    if (!value || !userId) continue
+                    await query(QEURIES.USER_QUERIES.WRITE.UPDATE_USER_CREDITS(), [value, userId])
+                } catch (err) {
+                    console.error(`Sync failed for key ${key}:`, err)
+                }
             }
         })
-        stream.on("error", (err) => {
+        stream.on("error", (err: Error) => {
             console.error("Redis scan error:", err)
         })
     }catch(err){
-        console.log(err)
+        console.log("Sync job error:", err)
     }
 }
