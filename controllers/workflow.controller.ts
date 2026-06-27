@@ -131,7 +131,6 @@ export const endCollaborativeSession = async (req: Request, res: Response) => {
 
 const NODE_COSTS: Record<string, number> = {
     llm_agent: 5,
-    code: 1,
     http_request: 5,
 }
 
